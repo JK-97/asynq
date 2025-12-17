@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
-	"github.com/hibiken/asynq/internal/rdb"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/errors"
+	"github.com/JK-97/asynq/internal/rdb"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -247,7 +247,7 @@ func (i *Inspector) GetTaskInfo(queue, id string) (*TaskInfo, error) {
 	case err != nil:
 		return nil, fmt.Errorf("asynq: %w", err)
 	}
-	return newTaskInfo(info.Message, info.State, info.NextProcessAt, info.Result), nil
+	return newTaskInfo(info.Message, info.State, info.NextProcessAt, info.Result, info.Logs), nil
 }
 
 // ListOption specifies behavior of list operation.
@@ -334,6 +334,7 @@ func (i *Inspector) ListPendingTasks(queue string, opts ...ListOption) ([]*TaskI
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, err
@@ -370,6 +371,7 @@ func (i *Inspector) ListActiveTasks(queue string, opts ...ListOption) ([]*TaskIn
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		)
 		if _, ok := expiredSet[i.Message.ID]; ok {
 			t.IsOrphaned = true
@@ -402,6 +404,7 @@ func (i *Inspector) ListAggregatingTasks(queue, group string, opts ...ListOption
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, nil
@@ -431,6 +434,7 @@ func (i *Inspector) ListScheduledTasks(queue string, opts ...ListOption) ([]*Tas
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, nil
@@ -460,6 +464,7 @@ func (i *Inspector) ListRetryTasks(queue string, opts ...ListOption) ([]*TaskInf
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, nil
@@ -489,6 +494,7 @@ func (i *Inspector) ListArchivedTasks(queue string, opts ...ListOption) ([]*Task
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, nil
@@ -518,6 +524,7 @@ func (i *Inspector) ListCompletedTasks(queue string, opts ...ListOption) ([]*Tas
 			i.State,
 			i.NextProcessAt,
 			i.Result,
+			i.Logs,
 		))
 	}
 	return tasks, nil

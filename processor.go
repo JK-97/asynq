@@ -16,11 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
-	asynqcontext "github.com/hibiken/asynq/internal/context"
-	"github.com/hibiken/asynq/internal/errors"
-	"github.com/hibiken/asynq/internal/log"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/JK-97/asynq/internal/base"
+	asynqcontext "github.com/JK-97/asynq/internal/context"
+	"github.com/JK-97/asynq/internal/errors"
+	"github.com/JK-97/asynq/internal/log"
+	"github.com/JK-97/asynq/internal/timeutil"
 	"golang.org/x/time/rate"
 )
 
@@ -231,6 +231,13 @@ func (p *processor) exec() {
 					},
 				)
 				task.headers = msg.Headers
+				// Initialize LogWriter
+				task.lw = &LogWriter{
+					id:     msg.ID,
+					qname:  msg.Queue,
+					broker: p.broker,
+					ctx:    ctx,
+				}
 				resCh <- p.perform(ctx, task)
 			}()
 

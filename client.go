@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
-	"github.com/hibiken/asynq/internal/rdb"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/errors"
+	"github.com/JK-97/asynq/internal/rdb"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -417,7 +417,7 @@ func (c *Client) EnqueueContext(ctx context.Context, task *Task, opts ...Option)
 	case err != nil:
 		return nil, err
 	}
-	return newTaskInfo(msg, state, opt.processAt, nil), nil
+	return newTaskInfo(msg, state, opt.processAt, nil, nil), nil
 }
 
 // Ping performs a ping against the redis connection.

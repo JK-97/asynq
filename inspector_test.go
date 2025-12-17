@@ -15,10 +15,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/rdb"
-	h "github.com/hibiken/asynq/internal/testutil"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/rdb"
+	h "github.com/JK-97/asynq/internal/testutil"
+	"github.com/JK-97/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -477,7 +477,7 @@ func TestInspectorHistory(t *testing.T) {
 }
 
 func createPendingTask(msg *base.TaskMessage) *TaskInfo {
-	return newTaskInfo(msg, base.TaskStatePending, time.Now(), nil)
+	return newTaskInfo(msg, base.TaskStatePending, time.Now(), nil, nil)
 }
 
 func TestInspectorGetTaskInfo(t *testing.T) {
@@ -543,6 +543,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 				base.TaskStateActive,
 				time.Time{}, // zero value for n/a
 				nil,
+				nil,
 			),
 		},
 		{
@@ -552,6 +553,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 				m2,
 				base.TaskStateScheduled,
 				fiveMinsFromNow,
+				nil,
 				nil,
 			),
 		},
@@ -563,6 +565,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 				base.TaskStateRetry,
 				oneHourFromNow,
 				nil,
+				nil,
 			),
 		},
 		{
@@ -573,6 +576,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 				base.TaskStateArchived,
 				time.Time{}, // zero value for n/a
 				nil,
+				nil,
 			),
 		},
 		{
@@ -582,6 +586,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 				m5,
 				base.TaskStatePending,
 				now,
+				nil,
 				nil,
 			),
 		},
@@ -757,7 +762,7 @@ func TestInspectorListPendingTasks(t *testing.T) {
 }
 
 func newOrphanedTaskInfo(msg *base.TaskMessage) *TaskInfo {
-	info := newTaskInfo(msg, base.TaskStateActive, time.Time{}, nil)
+	info := newTaskInfo(msg, base.TaskStateActive, time.Time{}, nil, nil)
 	info.IsOrphaned = true
 	return info
 }
@@ -798,8 +803,8 @@ func TestInspectorListActiveTasks(t *testing.T) {
 			},
 			qname: "custom",
 			want: []*TaskInfo{
-				newTaskInfo(m3, base.TaskStateActive, time.Time{}, nil),
-				newTaskInfo(m4, base.TaskStateActive, time.Time{}, nil),
+				newTaskInfo(m3, base.TaskStateActive, time.Time{}, nil, nil),
+				newTaskInfo(m4, base.TaskStateActive, time.Time{}, nil, nil),
 			},
 		},
 		{
@@ -820,7 +825,7 @@ func TestInspectorListActiveTasks(t *testing.T) {
 			},
 			qname: "default",
 			want: []*TaskInfo{
-				newTaskInfo(m1, base.TaskStateActive, time.Time{}, nil),
+				newTaskInfo(m1, base.TaskStateActive, time.Time{}, nil, nil),
 				newOrphanedTaskInfo(m2),
 			},
 		},
@@ -848,6 +853,7 @@ func createScheduledTask(z base.Z) *TaskInfo {
 		z.Message,
 		base.TaskStateScheduled,
 		time.Unix(z.Score, 0),
+		nil,
 		nil,
 	)
 }
@@ -919,6 +925,7 @@ func createRetryTask(z base.Z) *TaskInfo {
 		base.TaskStateRetry,
 		time.Unix(z.Score, 0),
 		nil,
+		nil,
 	)
 }
 
@@ -989,6 +996,7 @@ func createArchivedTask(z base.Z) *TaskInfo {
 		z.Message,
 		base.TaskStateArchived,
 		time.Time{}, // zero value for n/a
+		nil,
 		nil,
 	)
 }
@@ -1067,6 +1075,7 @@ func createCompletedTask(z base.Z) *TaskInfo {
 		base.TaskStateCompleted,
 		time.Time{}, // zero value for n/a
 		nil,         // TODO: Test with result data
+		nil,         // logs
 	)
 }
 
@@ -1228,7 +1237,7 @@ func TestInspectorListAggregatingTasks(t *testing.T) {
 }
 
 func createAggregatingTaskInfo(msg *base.TaskMessage) *TaskInfo {
-	return newTaskInfo(msg, base.TaskStateAggregating, time.Time{}, nil)
+	return newTaskInfo(msg, base.TaskStateAggregating, time.Time{}, nil, nil)
 }
 
 func TestInspectorListPagination(t *testing.T) {

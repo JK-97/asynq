@@ -7,15 +7,16 @@ package rdb
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/errors"
+	"github.com/JK-97/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 )
@@ -1555,4 +1556,39 @@ func (r *RDB) WriteResult(qname, taskID string, data []byte) (int, error) {
 		return 0, errors.E(op, errors.Unknown, &errors.RedisCommandError{Command: "hset", Err: err})
 	}
 	return len(data), nil
+}
+
+// WriteLog appends a log entry to the specified task's logs.
+// The logs are stored as a JSON array in the "logs" hash field.
+func (r *RDB) WriteLog(qname, taskID string, entry base.LogEntry) error {
+	var op errors.Op = "rdb.WriteLog"
+	ctx := context.Background()
+	taskKey := base.TaskKey(qname, taskID)
+
+	// Serialize the entry to JSON
+	entryJSON, err := json.Marshal(map[string]interface{}{
+		"ts":  entry.Timestamp.Format(time.RFC3339Nano),
+		"msg": entry.Message,
+	})
+	if err != nil {
+		return errors.E(op, errors.Internal, fmt.Sprintf("failed to marshal log entry: %v", err))
+	}
+
+	// Use Lua script to atomically append to the logs array
+	script := redis.NewScript(`
+		local logs = redis.call("HGET", KEYS[1], "logs")
+		local entries = {}
+		if logs then
+			entries = cjson.decode(logs)
+		end
+		table.insert(entries, cjson.decode(ARGV[1]))
+		redis.call("HSET", KEYS[1], "logs", cjson.encode(entries))
+		return redis.status_reply("OK")
+	`)
+
+	if err := script.Run(ctx, r.client, []string{taskKey}, entryJSON).Err(); err != nil {
+		return errors.E(op, errors.Unknown, &errors.RedisCommandError{Command: "eval", Err: err})
+	}
+
+	return nil
 }

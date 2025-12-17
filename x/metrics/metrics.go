@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hibiken/asynq"
+	"github.com/JK-97/asynq"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

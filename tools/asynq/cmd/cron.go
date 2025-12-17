@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/hibiken/asynq"
+	"github.com/JK-97/asynq"
 	"github.com/spf13/cobra"
 )
 

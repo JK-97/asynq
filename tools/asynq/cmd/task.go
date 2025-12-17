@@ -12,7 +12,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/fatih/color"
-	"github.com/hibiken/asynq"
+	"github.com/JK-97/asynq"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +34,12 @@ func init() {
 	taskInspectCmd.Flags().StringP("id", "i", "", "id of the task (required)")
 	taskInspectCmd.MarkFlagRequired("queue")
 	taskInspectCmd.MarkFlagRequired("id")
+
+	taskCmd.AddCommand(taskLogsCmd)
+	taskLogsCmd.Flags().StringP("queue", "q", "", "queue to which the task belongs (required)")
+	taskLogsCmd.Flags().StringP("id", "i", "", "id of the task (required)")
+	taskLogsCmd.MarkFlagRequired("queue")
+	taskLogsCmd.MarkFlagRequired("id")
 
 	taskCmd.AddCommand(taskArchiveCmd)
 	taskArchiveCmd.Flags().StringP("queue", "q", "", "queue to which the task belongs (required)")
@@ -130,6 +136,15 @@ var taskInspectCmd = &cobra.Command{
 	Run:   taskInspect,
 	Example: heredoc.Doc(`
 		$ asynq task inspect --queue=myqueue --id=f1720682-f5a6-4db1-8953-4f48ae541d0f`),
+}
+
+var taskLogsCmd = &cobra.Command{
+	Use:   "logs --queue=<queue> --id=<task_id>",
+	Short: "Display logs for the specified task",
+	Args:  cobra.NoArgs,
+	Run:   taskLogs,
+	Example: heredoc.Doc(`
+		$ asynq task logs --queue=myqueue --id=f1720682-f5a6-4db1-8953-4f48ae541d0f`),
 }
 
 var taskCancelCmd = &cobra.Command{
@@ -465,6 +480,49 @@ func printTaskInfo(info *asynq.TaskInfo) {
 		bold.Println("Last Failure")
 		fmt.Printf("Failed at:     %s\n", formatPastTime(info.LastFailedAt))
 		fmt.Printf("Error message: %s\n", info.LastErr)
+	}
+	// Show log count if logs exist
+	if len(info.Logs) > 0 {
+		fmt.Println()
+		fmt.Printf("Logs: %d entries (use 'task logs' command to view)\n", len(info.Logs))
+	}
+}
+
+func taskLogs(cmd *cobra.Command, args []string) {
+	qname, err := cmd.Flags().GetString("queue")
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		os.Exit(1)
+	}
+	id, err := cmd.Flags().GetString("id")
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		os.Exit(1)
+	}
+
+	i := createInspector()
+	info, err := i.GetTaskInfo(qname, id)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(info.Logs) == 0 {
+		fmt.Println("No logs available for this task")
+		return
+	}
+
+	printTaskLogs(info)
+}
+
+func printTaskLogs(info *asynq.TaskInfo) {
+	bold := color.New(color.Bold)
+	bold.Printf("Logs for Task %s\n\n", info.ID)
+
+	for _, entry := range info.Logs {
+		fmt.Printf("[%s] %s\n",
+			entry.Timestamp.Format("2006-01-02 15:04:05.000"),
+			entry.Message)
 	}
 }
 

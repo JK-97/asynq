@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/log"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/log"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
+	"github.com/JK-97/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 )
@@ -471,14 +471,14 @@ var getTaskInfoCmd = redis.NewScript(`
 	if redis.call("EXISTS", KEYS[1]) == 0 then
 		return redis.error_reply("NOT FOUND")
 	end
-	local msg, state, result = unpack(redis.call("HMGET", KEYS[1], "msg", "state", "result"))
+	local msg, state, result, logs = unpack(redis.call("HMGET", KEYS[1], "msg", "state", "result", "logs"))
 	if state == "scheduled" or state == "retry" then
-		return {msg, state, redis.call("ZSCORE", ARGV[3] .. state, ARGV[1]), result}
+		return {msg, state, redis.call("ZSCORE", ARGV[3] .. state, ARGV[1]), result, logs or ""}
 	end
 	if state == "pending" then
-		return {msg, state, ARGV[2], result}
+		return {msg, state, ARGV[2], result, logs or ""}
 	end
-	return {msg, state, 0, result}
+	return {msg, state, 0, result, logs or ""}
 `)
 
 // GetTaskInfo returns a TaskInfo describing the task from the given queue.
@@ -504,8 +504,8 @@ func (r *RDB) GetTaskInfo(qname, id string) (*base.TaskInfo, error) {
 	if err != nil {
 		return nil, errors.E(op, errors.Internal, "unexpected value returned from Lua script")
 	}
-	if len(vals) != 4 {
-		return nil, errors.E(op, errors.Internal, "unepxected number of values returned from Lua script")
+	if len(vals) != 5 {
+		return nil, errors.E(op, errors.Internal, "unexpected number of values returned from Lua script")
 	}
 	encoded, err := cast.ToStringE(vals[0])
 	if err != nil {
@@ -520,6 +520,10 @@ func (r *RDB) GetTaskInfo(qname, id string) (*base.TaskInfo, error) {
 		return nil, errors.E(op, errors.Internal, "unexpected value returned from Lua script")
 	}
 	resultStr, err := cast.ToStringE(vals[3])
+	if err != nil {
+		return nil, errors.E(op, errors.Internal, "unexpected value returned from Lua script")
+	}
+	logsStr, err := cast.ToStringE(vals[4])
 	if err != nil {
 		return nil, errors.E(op, errors.Internal, "unexpected value returned from Lua script")
 	}
@@ -539,11 +543,16 @@ func (r *RDB) GetTaskInfo(qname, id string) (*base.TaskInfo, error) {
 	if len(resultStr) > 0 {
 		result = []byte(resultStr)
 	}
+	var logs []byte
+	if len(logsStr) > 0 {
+		logs = []byte(logsStr)
+	}
 	return &base.TaskInfo{
 		Message:       msg,
 		State:         state,
 		NextProcessAt: nextProcessAt,
 		Result:        result,
+		Logs:          logs,
 	}, nil
 }
 

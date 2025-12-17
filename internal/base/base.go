@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/errors"
-	pb "github.com/hibiken/asynq/internal/proto"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/JK-97/asynq/internal/errors"
+	pb "github.com/JK-97/asynq/internal/proto"
+	"github.com/JK-97/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -299,6 +299,12 @@ type TaskMessage struct {
 	CompletedAt int64
 }
 
+// LogEntry represents a single log entry for a task.
+type LogEntry struct {
+	Timestamp time.Time
+	Message   string
+}
+
 // EncodeMessage marshals the given task message and returns an encoded bytes.
 func EncodeMessage(msg *TaskMessage) ([]byte, error) {
 	if msg == nil {
@@ -354,6 +360,7 @@ type TaskInfo struct {
 	State         TaskState
 	NextProcessAt time.Time
 	Result        []byte
+	Logs          []byte // raw JSON bytes of log entries
 }
 
 // Z represents sorted set member.
@@ -727,4 +734,7 @@ type Broker interface {
 	PublishCancelation(id string) error
 
 	WriteResult(qname, id string, data []byte) (n int, err error)
+
+	// WriteLog appends a log entry to the task's log array.
+	WriteLog(qname, id string, entry LogEntry) error
 }

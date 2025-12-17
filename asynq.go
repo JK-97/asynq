@@ -7,6 +7,7 @@ package asynq
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"net"
@@ -15,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/base"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -35,6 +36,9 @@ type Task struct {
 
 	// w is the ResultWriter for the task.
 	w *ResultWriter
+
+	// lw is the LogWriter for the task.
+	lw *LogWriter
 }
 
 func (t *Task) Type() string               { return t.typename }
@@ -46,6 +50,12 @@ func (t *Task) Headers() map[string]string { return t.headers }
 // Nil pointer is returned if called on a newly created task (i.e. task created by calling NewTask).
 // Only the tasks passed to Handler.ProcessTask have a valid ResultWriter pointer.
 func (t *Task) ResultWriter() *ResultWriter { return t.w }
+
+// LogWriter returns a pointer to the LogWriter associated with the task.
+//
+// Nil pointer is returned if called on a newly created task (i.e. task created by calling NewTask).
+// Only the tasks passed to Handler.ProcessTask have a valid LogWriter pointer.
+func (t *Task) LogWriter() *LogWriter { return t.lw }
 
 // NewTask returns a new Task given a type name and payload data.
 // Options can be passed to configure task processing behavior.
@@ -152,6 +162,11 @@ type TaskInfo struct {
 	// Result holds the result data associated with the task.
 	// Use ResultWriter to write result data from the Handler.
 	Result []byte
+
+	// Logs holds the log entries associated with the task.
+	// Use LogWriter to write log entries from the Handler.
+	// Each entry contains a timestamp and message.
+	Logs []LogEntry
 }
 
 // If t is non-zero, returns time converted from t as unix time in seconds.
@@ -163,7 +178,7 @@ func fromUnixTimeOrZero(t int64) time.Time {
 	return time.Unix(t, 0)
 }
 
-func newTaskInfo(msg *base.TaskMessage, state base.TaskState, nextProcessAt time.Time, result []byte) *TaskInfo {
+func newTaskInfo(msg *base.TaskMessage, state base.TaskState, nextProcessAt time.Time, result []byte, logs []byte) *TaskInfo {
 	info := TaskInfo{
 		ID:            msg.ID,
 		Queue:         msg.Queue,
@@ -181,6 +196,15 @@ func newTaskInfo(msg *base.TaskMessage, state base.TaskState, nextProcessAt time
 		LastFailedAt:  fromUnixTimeOrZero(msg.LastFailedAt),
 		CompletedAt:   fromUnixTimeOrZero(msg.CompletedAt),
 		Result:        result,
+	}
+
+	// Parse logs from JSON
+	if len(logs) > 0 {
+		var entries []LogEntry
+		if err := json.Unmarshal(logs, &entries); err == nil {
+			info.Logs = entries
+		}
+		// Silently ignore parse errors to maintain backward compatibility
 	}
 
 	switch state {
@@ -574,4 +598,41 @@ func (w *ResultWriter) Write(data []byte) (n int, err error) {
 // TaskID returns the ID of the task the ResultWriter is associated with.
 func (w *ResultWriter) TaskID() string {
 	return w.id
+}
+
+// LogEntry represents a single log entry for a task.
+type LogEntry struct {
+	Timestamp time.Time `json:"ts"`
+	Message   string    `json:"msg"`
+}
+
+// LogWriter is a client interface to write log entries for a task.
+// It writes log data to the redis instance the server is connected to.
+type LogWriter struct {
+	id     string // task ID this writer is responsible for
+	qname  string // queue name the task belongs to
+	broker base.Broker
+	ctx    context.Context // context associated with the task
+}
+
+// Log writes a log message with the current timestamp.
+// It returns an error if the task context is cancelled or if the write operation fails.
+func (lw *LogWriter) Log(message string) error {
+	select {
+	case <-lw.ctx.Done():
+		return fmt.Errorf("failed to write task log: %w", lw.ctx.Err())
+	default:
+	}
+
+	entry := base.LogEntry{
+		Timestamp: time.Now().UTC(),
+		Message:   message,
+	}
+
+	return lw.broker.WriteLog(lw.qname, lw.id, entry)
+}
+
+// TaskID returns the ID of the task the LogWriter is associated with.
+func (lw *LogWriter) TaskID() string {
+	return lw.id
 }

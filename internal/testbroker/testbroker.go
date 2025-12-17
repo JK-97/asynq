@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
+	"github.com/JK-97/asynq/internal/base"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -215,6 +215,15 @@ func (tb *TestBroker) WriteResult(qname, id string, data []byte) (int, error) {
 		return 0, errRedisDown
 	}
 	return tb.real.WriteResult(qname, id, data)
+}
+
+func (tb *TestBroker) WriteLog(qname, id string, entry base.LogEntry) error {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+	if tb.sleeping {
+		return errRedisDown
+	}
+	return tb.real.WriteLog(qname, id, entry)
 }
 
 func (tb *TestBroker) Ping() error {
