@@ -3,7 +3,7 @@ module github.com/JK-97/asynq/tools
 go 1.22
 
 require (
-	github.com/JK-97/asynq v0.25.0
+	github.com/JK-97/asynq v0.25.2
 	github.com/JK-97/asynq/x v0.0.0-00010101000000-000000000000
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/fatih/color v1.18.0
