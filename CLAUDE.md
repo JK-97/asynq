@@ -46,7 +46,7 @@ cd x && go build -v ./... && cd ..
 cd tools && go build -v ./... && cd ..
 
 # Install CLI tool
-go install github.com/hibiken/asynq/tools/asynq@latest
+go install github.com/JK-97/asynq/tools/asynq@latest
 ```
 
 ### Linting
@@ -248,7 +248,7 @@ The `asynq` CLI tool provides queue/task inspection and management:
 
 ```bash
 # Install
-go install github.com/hibiken/asynq/tools/asynq@latest
+go install github.com/JK-97/asynq/tools/asynq@latest
 
 # View dashboard
 asynq dash
